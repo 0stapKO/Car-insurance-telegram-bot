@@ -34,15 +34,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await file.download_to_drive(file_path)
 
     if stage == 'passport':
-        await handle_passport(file_path)
+        await handle_passport(file_path, update)
+
         context.user_data['stage'] = 'plate'
         await update.message.reply_text('Great! Now send a picture of your vehicle plate.')
     elif stage == 'plate':
-        await handle_plate(file_path)
+        await handle_plate(file_path, update)
     else:
         await update.message.reply_text('I don\'t know what that image is')
 
-async def handle_passport(file_path):
+async def handle_passport(file_path, update):
     # Відправляємо фото в Mindee API
     input_doc = mindee_client.source_from_path(file_path)
     result: PredictResponse = mindee_client.parse(
@@ -51,9 +52,11 @@ async def handle_passport(file_path):
 )
     # Прибираємо файл
     os.remove(file_path)
-    print(result.document)
+    prediction = result.document.inference.prediction
+    print(result.document.inference.prediction.surname.value)
+    await update.message.reply_text(f'Please confirm your data.\nFirst name: {str([name.value for name in prediction.given_names]).replace('\'', '')[1:-1]}\nLast name: {prediction.surname.value}\nID: {prediction.id_number.value}')
 
-async def handle_plate(file_path):
+async def handle_plate(file_path, update):
     with open(file_path, "rb") as f:
         response = requests.post(
             "https://api.platerecognizer.com/v1/plate-reader/",
@@ -63,6 +66,7 @@ async def handle_plate(file_path):
     os.remove(file_path)
     # Обробка результату
     print(response.json())
+    await update.message.reply_text(f'Please confirm your data.\nVehicle plate number: {response.json()['results'][0]['plate']}')
 
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
