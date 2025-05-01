@@ -101,6 +101,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text
     
     if context.user_data.get("stage", "").startswith("awaiting_"):
+        print('skip')
         return
     
     try:
