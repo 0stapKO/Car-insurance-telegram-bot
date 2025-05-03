@@ -1,4 +1,4 @@
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 
 async def data_confirmation_buttons(update: Update, data):
     keyboard = [[KeyboardButton('Confirm data'), KeyboardButton('Send another picture')]]

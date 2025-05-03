@@ -1,7 +1,7 @@
 from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, MessageHandler, filters
 from bot.confirmation import data_confirmation_buttons, price_confirmation_buttons
-from bot.document_generator import generate_policy_document
+from bot.document_generator import send_policy_document
 
 
 async def handle_confirmation(update: Update, context: ContextTypes):
@@ -23,12 +23,13 @@ async def handle_confirmation(update: Update, context: ContextTypes):
             await price_confirmation_buttons(update, context)
         elif user_input == 'Send another picture':
             context.user_data['stage'] = 'plate'
-            await update.message.reply_text("Okay, please send the vehicle plate photo again.", reply_markup=ReplyKeyboardRemove())
+            await update.message.reply_text("Okay, please send the plate photo again.", reply_markup=ReplyKeyboardRemove())
 
     elif stage == 'price_confirmation':
         context.user_data['stage'] = 'start'
         if user_input == 'Buy insurance':
-            await generate_policy_document(update, context.user_data)
+            await send_policy_document(update, context.user_data)
+            await update.message.reply_text("Here's your insurance policy.\nThanks for choosing BuyACarInsuranceBot!", reply_markup=ReplyKeyboardRemove())
         elif user_input == 'Cancel':
             await update.message.reply_text("Sorry. 100$ is the only available price.", reply_markup=ReplyKeyboardRemove())
     else:

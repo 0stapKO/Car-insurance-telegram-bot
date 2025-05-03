@@ -14,6 +14,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("buy", buy_command))
     
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_confirmation))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat), group=1)
 

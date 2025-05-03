@@ -1,9 +1,9 @@
 from fpdf import FPDF
 from datetime import datetime
-from bot.config import openai_client
-import os
+from bot.chat_handler import get_gpt_reply_without_context
+import os 
 
-async def generate_policy_document(update, user_data):
+async def generate_policy_document(user_data):
     today = datetime.today().strftime("%B %d, %Y")
     full_name = f"{user_data['passport_data']['First name']} {user_data['passport_data']['Last name']}"
     id = user_data['passport_data']['ID']
@@ -41,23 +41,21 @@ async def generate_policy_document(update, user_data):
         Thank you for choosing our insurance services.'''
     
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4.1-nano",
-            messages=[{"role": "system", "content": prompt}]
-        )
+        response = await get_gpt_reply_without_context(prompt, 'generate')
         
         # Створення PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=14)
-        for line in response.choices[0].message.content.strip().split('\n'):
+        for line in response.strip().split('\n'):
             pdf.multi_cell(0, 10, line)
         pdf.output("additional/insurance_policy.pdf")
-        
-        with open("additional/insurance_policy.pdf", 'rb') as pdf_file:
-            await update.message.reply_document(document=pdf_file)
-        
-        os.remove("additional/insurance_policy.pdf")
             
     except Exception as e:
         print(f"Error generating document: {e}")
+
+async def send_policy_document(update, user_data):
+    await generate_policy_document(user_data)
+    with open("additional/insurance_policy.pdf", 'rb') as pdf_file:
+        await update.message.reply_document(document=pdf_file)  
+    os.remove("additional/insurance_policy.pdf")

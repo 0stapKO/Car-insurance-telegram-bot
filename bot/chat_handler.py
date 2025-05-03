@@ -13,15 +13,31 @@ async def chat(update: Update, context: ContextTypes):
                 Encourage users to click 'buy insurance' button or write /buy to start insurance purchasing.'''
     
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4.1-nano",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_input}
-            ]
-        )
-        reply = response.choices[0].message.content
+        reply = await get_gpt_reply(context, prompt, user_input)
     except Exception as e:
         reply = f"Помилка при запиті до OpenAI: {e}"
 
     await update.message.reply_text(reply)
+
+async def get_gpt_reply(context, prompt, user_input):
+    if 'chat_history' not in context.user_data:
+        context.user_data['chat_history'] =  [{"role": "system", "content": prompt}]
+
+    context.user_data["chat_history"].append({"role": "user", "content": user_input})
+    response = openai_client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=context.user_data['chat_history']
+    )
+    reply = response.choices[0].message.content
+    context.user_data["chat_history"].append({"role": "assistant", "content": reply})
+    return reply
+
+async def get_gpt_reply_without_context(prompt, user_input):
+    response = openai_client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": user_input}
+        ]
+    )
+    return response.choices[0].message.content
