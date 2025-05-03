@@ -1,10 +1,10 @@
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
-from commands import start_command, help_command, buy_command
-from handlers import handle_confirmation, handle_photo
-from chat_handler import chat
+from bot.commands import start_command, help_command, buy_command
+from bot.handlers import handle_confirmation, handle_photo
+from bot.chat_handler import chat
 
 if __name__ == '__main__':
-    from config import BOT_TOKEN
+    from bot.config import BOT_TOKEN
     
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 

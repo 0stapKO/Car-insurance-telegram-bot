@@ -1,6 +1,6 @@
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
-from config import PLATE_RECOGNIZER_TOKEN
+from bot.config import PLATE_RECOGNIZER_TOKEN
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Hi! My name is BuyACarInsuranceBot. I can help you to buy an insurance for your car.')

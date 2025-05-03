@@ -1,7 +1,7 @@
 import os
 import requests
 from mindee import product
-from config import mindee_client
+from bot.config import mindee_client
 
 async def handle_passport(file_path, update):
     input_doc = mindee_client.source_from_path(file_path)

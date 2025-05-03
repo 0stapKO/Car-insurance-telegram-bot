@@ -1,6 +1,6 @@
 from fpdf import FPDF
 from datetime import datetime
-from config import openai_client
+from bot.config import openai_client
 import os
 
 async def generate_policy_document(update, user_data):

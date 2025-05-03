@@ -1,7 +1,7 @@
 from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, MessageHandler, filters
-from confirmation import data_confirmation_buttons, price_confirmation_buttons
-from document_generator import generate_policy_document
+from bot.confirmation import data_confirmation_buttons, price_confirmation_buttons
+from bot.document_generator import generate_policy_document
 
 
 async def handle_confirmation(update: Update, context: ContextTypes):
@@ -42,13 +42,13 @@ async def handle_photo(update: Update, context: ContextTypes):
     await file.download_to_drive(file_path)
     
     if stage == 'passport':
-        from photo_handler import handle_passport
+        from bot.photo_handler import handle_passport
         data = await handle_passport(file_path, update)
         context.user_data['passport_data'] = data
         context.user_data['stage'] = 'awaiting_passport_confirmation'
         await data_confirmation_buttons(update, data)
     elif stage == 'plate':
-        from photo_handler import handle_plate
+        from bot.photo_handler import handle_plate
         data = await handle_plate(file_path, update)
         context.user_data['plate_data'] = data
         context.user_data['stage'] = 'awaiting_plate_confirmation'

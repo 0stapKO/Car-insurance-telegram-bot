@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from config import openai_client
+from bot.config import openai_client
 
 async def chat(update: Update, context: ContextTypes):
     if not context.user_data.get('need_chat', True):
