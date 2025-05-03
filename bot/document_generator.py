@@ -4,8 +4,8 @@ from bot.chat_handler import get_gpt_reply_without_context
 import os 
 
 async def generate_policy_document(user_data):
-    today = datetime.today().strftime("%B %d, %Y")
-    full_name = f"{user_data['passport_data']['First name']} {user_data['passport_data']['Last name']}"
+    today = datetime.today().strftime('%B %d, %Y')
+    full_name = f'{user_data['passport_data']['First name']} {user_data['passport_data']['Last name']}'
     id = user_data['passport_data']['ID']
     plate_number = user_data['plate_data']['Vehicle plate number']
     
@@ -46,16 +46,16 @@ async def generate_policy_document(user_data):
         # Створення PDF
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=14)
+        pdf.set_font('Arial', size=14)
         for line in response.strip().split('\n'):
             pdf.multi_cell(0, 10, line)
-        pdf.output("additional/insurance_policy.pdf")
+        pdf.output('additional/insurance_policy.pdf')
             
     except Exception as e:
-        print(f"Error generating document: {e}")
+        print(f'Error generating document: {e}')
 
 async def send_policy_document(update, user_data):
     await generate_policy_document(user_data)
-    with open("additional/insurance_policy.pdf", 'rb') as pdf_file:
+    with open('additional/insurance_policy.pdf', 'rb') as pdf_file:
         await update.message.reply_document(document=pdf_file)  
-    os.remove("additional/insurance_policy.pdf")
+    os.remove('additional/insurance_policy.pdf')

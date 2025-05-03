@@ -2,6 +2,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from bot.commands import start_command, help_command, buy_command
 from bot.handlers import handle_confirmation, handle_photo
 from bot.chat_handler import chat
+from bot.buttons import buy_button
 
 if __name__ == '__main__':
     from bot.config import BOT_TOKEN
@@ -9,14 +10,13 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # Реєстрація обробників
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("buy", buy_command))
+    app.add_handler(CommandHandler('start', start_command))
+    app.add_handler(CommandHandler('help', help_command))
+    app.add_handler(CommandHandler('buy', buy_command))
     
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_confirmation))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat), group=1)
 
-    print("Бот працює з OpenAI!")
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_confirmation))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, buy_button), group=1)
+
     app.run_polling()
