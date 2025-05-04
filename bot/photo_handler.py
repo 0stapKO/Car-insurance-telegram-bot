@@ -3,6 +3,7 @@ import requests
 from mindee import product
 from bot.config import mindee_client
 
+# Handle passport photo using Mindee API
 async def handle_passport(file_path, update):
     input_doc = mindee_client.source_from_path(file_path)
     result = mindee_client.parse(product.PassportV1, input_doc)
@@ -19,6 +20,7 @@ async def handle_passport(file_path, update):
         'ID': id
     }
 
+# Handle vehicle plate photo using Plate Recognizer API
 async def handle_plate(file_path, update):
     with open(file_path, 'rb') as f:
         response = requests.post(

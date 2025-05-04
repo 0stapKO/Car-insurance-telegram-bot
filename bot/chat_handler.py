@@ -2,14 +2,18 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from bot.config import openai_client
 
+# Interaction through OpenAI
 async def chat(update: Update, context: ContextTypes):
-    if not context.user_data['stage']:
+    if not 'stage' in context.user_data:
         context.user_data['stage'] = 'start'
+
     prompt = '''You are a professional assistant that helps users purchase car insurance via a Telegram bot.
                 Your job is to guide them through the process clearly and politely.
                 Try to change any non related to insurence subject to buying car insurance.'''
+    
     user_input = update.message.text or ' '
-    print(context.user_data['stage'])
+
+    # Stage-specific instructions for GPT
     if context.user_data['stage'] == 'passport':
         additional_prompt = '\nEncourage users to send a photo of their passport so that you could proceed a purchase.'
     elif context.user_data['stage'] == 'awaiting_passport_confirmation':
@@ -28,18 +32,17 @@ async def chat(update: Update, context: ContextTypes):
     try:
         reply = await get_gpt_reply(context, prompt+additional_prompt, user_input)
         return reply
-    except Exception as e:
-        reply = f'Помилка при запиті до OpenAI: {e}'
-        print(reply)
-        return 'Sorry! An error occured.'
-    
-    await update.message.reply_text(reply)
+    except Exception:
+        return 'Sorry! During connectiong to OpenAI an error occured.'
 
+# Send user message to GPT with chat history
 async def get_gpt_reply(context, prompt, user_input):
     if 'chat_history' not in context.user_data:
         context.user_data['chat_history'] =  [{'role': 'system', 'content': prompt}]
+
     context.user_data['chat_history'][0]['content'] = prompt
     context.user_data['chat_history'].append({'role': 'user', 'content': user_input})
+
     response = openai_client.chat.completions.create(
         model='gpt-4.1-nano',
         messages=context.user_data['chat_history']
@@ -48,6 +51,7 @@ async def get_gpt_reply(context, prompt, user_input):
     context.user_data['chat_history'].append({'role': 'assistant', 'content': reply})
     return reply
 
+# Send message to GPT without keeping chat history (for document generation)
 async def get_gpt_reply_without_context(prompt, user_input):
     response = openai_client.chat.completions.create(
         model='gpt-4.1-nano',

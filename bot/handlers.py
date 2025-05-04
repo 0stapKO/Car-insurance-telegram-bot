@@ -1,18 +1,19 @@
 from telegram import Update, ReplyKeyboardRemove
-from telegram.ext import ContextTypes, MessageHandler, filters
+from telegram.ext import ContextTypes
 from bot.buttons import data_confirmation_buttons, price_confirmation_buttons
 from bot.document_generator import send_policy_document
 from bot.commands import buy_command
 from bot.chat_handler import chat
 
-
+# Handle user input from confirmation buttons
 async def handle_confirmation(update: Update, context: ContextTypes):
     user_input = update.message.text
-    stage = context.user_data.get('stage')
+    stage = context.user_data['stage']
+
+    # If the message is not handled by the current logic, pass it to GPT
     context.user_data['need_chat'] = False
     
     if stage == 'start':
-        # context.user_data['need_chat'] = True
         if user_input == 'Buy Insurance':
             await buy_command(update, context)
         else:
@@ -54,6 +55,7 @@ async def handle_confirmation(update: Update, context: ContextTypes):
     else:
         context.user_data['need_chat'] = True
 
+# Handle uploaded photos (passport or plate), parse them and ask for confirmation
 async def handle_photo(update: Update, context: ContextTypes):
     stage = context.user_data.get('stage')
     photo = update.message.photo[-1]
