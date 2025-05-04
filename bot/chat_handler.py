@@ -1,63 +1,35 @@
-from telegram import Update
-from telegram.ext import ContextTypes
 from bot.config import openai_client
 
-# Interaction through OpenAI
-async def chat(update: Update, context: ContextTypes):
-    if not 'stage' in context.user_data:
-        context.user_data['stage'] = 'start'
-
-    prompt = '''You are a professional assistant that helps users purchase car insurance via a Telegram bot.
-                Your job is to guide them through the process clearly and politely.
-                Try to change any non related to insurence subject to buying car insurance.'''
-    
-    user_input = update.message.text or ' '
-
-    # Stage-specific instructions for GPT
-    if context.user_data['stage'] == 'passport':
-        additional_prompt = '\nEncourage users to send a photo of their passport so that you could proceed a purchase.'
-    elif context.user_data['stage'] == 'awaiting_passport_confirmation':
-        additional_prompt = '\nThe user has already sent a photo of their passport. Encourage users to check if you got their name and id right. If not, suggest take another photo of the passport.'
-    elif context.user_data['stage'] == 'plate':
-        additional_prompt = '\nForget about passport. Encourage users to send a photo of their vehicle\'s plate so that you could proceed a purchase.'
-    elif context.user_data['stage'] == 'awaiting_plate_confirmation':
-        additional_prompt = '\nThe user has already sent a photo of their vehicle\'s plate. Encourage users to check if you got the plate number right. If not, suggest take another photo of the plate.'
-    elif context.user_data['stage'] == 'price_confirmation':
-        additional_prompt = '\nForget about plate. Remind users that an estimated price for their insurance is 100 USD. Ask if they agree.'
-    elif context.user_data['stage'] == 'decline':
-        additional_prompt = '\nApologise for having suggesting such a high price (100USD) and explain that this is the only available price.'
-    else:
-        additional_prompt = '\nEncourage users to click \'Buy Insurance\' button or write /buy to start insurance purchasing.'
-    
-    try:
-        reply = await get_gpt_reply(context, prompt+additional_prompt, user_input)
-        return reply
-    except Exception:
-        return 'Sorry! During connectiong to OpenAI an error occured.'
-
-# Send user message to GPT with chat history
-async def get_gpt_reply(context, prompt, user_input):
+async def get_openai_reply(context, user_input, extra_context=None):
+    # Initialize chat history if it doesn't exist in user data
     if 'chat_history' not in context.user_data:
-        context.user_data['chat_history'] =  [{'role': 'system', 'content': prompt}]
+        context.user_data['chat_history'] = [
+            {'role': 'system', 'content': '''You are a car insurance assistant. Help users buy insurance. 
+            If they send a photo, try to interpret it and confirm extracted data. Be polite and proactive.
+            After receiving a photo ask the user if the data you extracted is valid, if not, ask the user to take another photo.
+            Wait for the user to confirm the data and then ask to send the next photo.
+            Don't ask the user to send the next photo if they haven't confirmed the previous one yet.
+            Only after receiving and confirming the photos of passport and license plate tell the user that the estimated price for their insurance is 100 USD and ask them if they are ready to do a purchase.
+            If user disagrees to the price apologise and explain that this is the only available price.'''}
+        ]
 
-    context.user_data['chat_history'][0]['content'] = prompt
-    context.user_data['chat_history'].append({'role': 'user', 'content': user_input})
+    msg = user_input
+
+    # If there is extra context (e.g., extracted info from image), append it to the message
+    if extra_context:
+        msg += f"\n[Extracted data: {extra_context}]"
+        context.user_data.update(extra_context)
+
+     # Add the user's message to the chat history
+    context.user_data['chat_history'].append({'role': 'user', 'content': msg})
 
     response = openai_client.chat.completions.create(
         model='gpt-4.1-nano',
         messages=context.user_data['chat_history']
     )
+
     reply = response.choices[0].message.content
+
+    # Add the gpt's reply to the chat history
     context.user_data['chat_history'].append({'role': 'assistant', 'content': reply})
     return reply
-
-# Send message to GPT without keeping chat history (for document generation)
-async def get_gpt_reply_without_context(prompt, user_input):
-    response = openai_client.chat.completions.create(
-        model='gpt-4.1-nano',
-        messages=[
-            {'role': 'system', 'content': prompt},
-            {'role': 'user', 'content': user_input}
-        ]
-    )
-    return response.choices[0].message.content

@@ -1,16 +1,16 @@
 from fpdf import FPDF
 from datetime import datetime
-from bot.chat_handler import get_gpt_reply_without_context
-import os 
+from bot.config import openai_client
+import os
 
 # Generate insurance policy document using GPT and save as PDF
 async def generate_policy_document(user_data):
     today = datetime.today().strftime('%B %d, %Y')
     full_name = f'{user_data['passport_data']['First name']} {user_data['passport_data']['Last name']}'
     id = user_data['passport_data']['ID']
-    plate_number = user_data['plate_data']['Vehicle plate number']
+    license_plate = user_data['plate_data']['Vehicle license plate']
     
-    prompt = f'''You are a virtual insurance assistant. Generate a car insurance policy document for a client named {full_name}, who owns a vehicle with the license plate number {plate_number}.
+    prompt = f'''You are a virtual insurance assistant. Generate a car insurance policy document for a client named {full_name}, who owns a vehicle with the license plate number {license_plate}.
 
         The insurance policy costs 100 USD and is valid for 1 year from the issue date. Create a realistic and professional-looking insurance policy text that includes:
 
@@ -32,7 +32,7 @@ async def generate_policy_document(user_data):
 
         Policyholder's name: {full_name}  
         Policyholder's id: {id}  
-        Vehicle License Plate: {plate_number}
+        Vehicle License Plate: {license_plate}
 
         Insured Amount: 100 USD  
         Coverage Period: [Start Date] - [End Date]
@@ -42,7 +42,13 @@ async def generate_policy_document(user_data):
         Thank you for choosing our insurance services.'''
     
     try:
-        response = await get_gpt_reply_without_context(prompt, 'generate')
+        response = openai_client.chat.completions.create(
+        model='gpt-4.1-nano',
+        messages=[
+            {'role': 'system', 'content': prompt}
+        ]
+    )
+        response = response.choices[0].message.content
         
         # Generate PDF from GPT response and save as insurance_policy.pdf
         pdf = FPDF()

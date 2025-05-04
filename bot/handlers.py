@@ -1,88 +1,92 @@
-from telegram import Update, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
-from bot.buttons import data_confirmation_buttons, price_confirmation_buttons
+from bot.chat_handler import get_openai_reply
+from bot.photo_handler import parse_photo_data
 from bot.document_generator import send_policy_document
-from bot.commands import buy_command
-from bot.chat_handler import chat
 
-# Handle user input from confirmation buttons
-async def handle_confirmation(update: Update, context: ContextTypes):
-    user_input = update.message.text
-    stage = context.user_data.get('stage')
+async def handle_message_or_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = '' # Will store the user's message or a placeholder like "[Photo Uploaded]"
+    extra_context = {} # Holds extracted data from photos (passport/plate)
 
-    # If the message is not handled by the current logic, pass it to GPT
-    context.user_data['need_chat'] = False
-    
-    if stage == 'start':
-        if user_input == 'Buy Insurance':
-            await buy_command(update, context)
-        else:
-            context.user_data['need_chat'] = True
-        
-    elif stage == 'awaiting_passport_confirmation':
-        if user_input == 'Confirm data':
-            context.user_data['stage'] = 'plate'
-            await update.message.reply_text('Great! Now send a picture of your vehicle plate.', reply_markup=ReplyKeyboardRemove())
-        elif user_input == 'Send another picture':
-            context.user_data['stage'] = 'passport'
-            await update.message.reply_text('Okay, please send the passport photo again.', reply_markup=ReplyKeyboardRemove())
-        else:
-            context.user_data['need_chat'] = True
+    # Handle photo input
+    if update.message and update.message.photo:
+        file = await context.bot.get_file(update.message.photo[-1].file_id)
+        file_path = 'additional/temp.jpg'
+        await file.download_to_drive(file_path)
 
-    elif stage == 'awaiting_plate_confirmation':
-        if user_input == 'Confirm data':
-            context.user_data['stage'] = 'price_confirmation'
-            await price_confirmation_buttons(update, context)
-        elif user_input == 'Send another picture':
-            context.user_data['stage'] = 'plate'
-            await update.message.reply_text('Okay, please send the plate photo again.', reply_markup=ReplyKeyboardRemove())
-        else:
-            context.user_data['need_chat'] = True
+        # Extract data from the image using Mindee
+        extracted_data = await parse_photo_data(file_path, context)
 
-    elif stage == 'price_confirmation':
-        if user_input == 'Buy insurance':
-            context.user_data['stage'] = 'start'
-            await send_policy_document(update, context.user_data)
-            await update.message.reply_text('Here\'s your insurance policy.\nThanks for choosing BuyACarInsuranceBot!', reply_markup=ReplyKeyboardRemove())
-        elif user_input == 'Cancel':
-            context.user_data['stage'] = 'decline'
-            reply = await chat(update, context)
-            await update.message.reply_text(reply, reply_markup=ReplyKeyboardRemove())
-            context.user_data['stage'] = 'start'
-        else:
-            context.user_data['need_chat'] = True
-
-    else:
-        context.user_data['need_chat'] = True
-
-# Handle uploaded photos (passport or plate), parse them and ask for confirmation
-async def handle_photo(update: Update, context: ContextTypes):
-    stage = context.user_data.get('stage')
-    photo = update.message.photo[-1]
-    file = await context.bot.get_file(photo.file_id)
-    file_path = 'additional/temp_photo.jpg'
-    await file.download_to_drive(file_path)
-    
-    if stage == 'passport':
-        from bot.photo_handler import handle_passport
-        try:
-            data = await handle_passport(file_path, update)
-        except ValueError as e:
-            await update.message.reply_text(str(e)+'\nPlease take another photo of your passport.')
+        # If returned nothing or an error
+        if not extracted_data or 'Error' in extracted_data:
+            await update.message.reply_text("Couldn\'t recognize the data from the photo. Please send another one.")
             return
-        context.user_data['passport_data'] = data
-        context.user_data['stage'] = 'awaiting_passport_confirmation'
-        await data_confirmation_buttons(update, data)
-    elif stage == 'plate':
-        from bot.photo_handler import handle_plate
-        try:
-            data = await handle_plate(file_path, update)
-        except ValueError as e:
-            await update.message.reply_text(str(e)+'\nPlease take another photo of your vehicle\'s plate.')
-            return
-        context.user_data['plate_data'] = data
-        context.user_data['stage'] = 'awaiting_plate_confirmation'
-        await data_confirmation_buttons(update, data)
-    else:
-        reply = await chat(update, context)
+
+        # Store extracted data in user context
+        if 'First name' in extracted_data:
+            context.user_data['passport_data'] = extracted_data
+            extra_context = {'passport_data': extracted_data}
+        elif 'Vehicle license plate' in extracted_data:
+            context.user_data['plate_data'] = extracted_data
+            extra_context = {'plate_data': extracted_data}
+
+        user_input = '[Photo Uploaded]'
+        reply = await get_openai_reply(context, user_input, extra_context)
+
+        # Show "Yes" button to confirm data
+        keyboard = ReplyKeyboardMarkup(
+            [[KeyboardButton("Yes")]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+        await update.message.reply_text(reply, reply_markup=keyboard)
+
+    # Handle text input
+    elif update.message and update.message.text:
+        user_input = update.message.text.lower()
+
+        if user_input == 'yes':
+            # Passport data confirmation
+            if 'passport_data' in context.user_data and not context.user_data.get('confirmed_passport'):
+                context.user_data['confirmed_passport'] = True
+                if context.user_data.get('confirmed_plate'):
+                    keyboard = ReplyKeyboardMarkup(
+                        [[KeyboardButton("Yes")]],
+                        resize_keyboard=True,
+                        one_time_keyboard=True
+                    )
+                    await update.message.reply_text(
+                        "The estimated price of incurance is 100 USD. If you agree click 'Yes'.",
+                        reply_markup=keyboard
+                    )
+                else:
+                    await update.message.reply_text("Passport data confirmed. Now send a photo of you vehicle's license plate.")
+                return
+
+            # Plate number confirmation
+            if 'plate_data' in context.user_data and not context.user_data.get('confirmed_plate'):
+                context.user_data['confirmed_plate'] = True
+                if context.user_data.get('confirmed_passport'):
+                    keyboard = ReplyKeyboardMarkup(
+                        [[KeyboardButton("Yes")]],
+                        resize_keyboard=True,
+                        one_time_keyboard=True
+                    )
+                    await update.message.reply_text(
+                        "The estimated price of incurance is 100 USD. If you agree click 'Yes'.",
+                        reply_markup=keyboard
+                    )
+                else:
+                    await update.message.reply_text("License plate confirmed. Now send a photo of you passport.")
+                return
+
+            # Price confirmation
+            if context.user_data.get('confirmed_passport') and context.user_data.get('confirmed_plate') and not context.user_data.get('price_confirmed'):
+                context.user_data['price_confirmed'] = True
+                await update.message.reply_text("Generating insurance policy... ")
+                await send_policy_document(update, context.user_data)
+                await update.message.reply_text("Thanks for using BuyACarInsuranceBot!")
+                return
+
+        reply = await get_openai_reply(context, user_input)
         await update.message.reply_text(reply)
