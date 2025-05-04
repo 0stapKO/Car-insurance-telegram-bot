@@ -8,7 +8,7 @@ from bot.chat_handler import chat
 # Handle user input from confirmation buttons
 async def handle_confirmation(update: Update, context: ContextTypes):
     user_input = update.message.text
-    stage = context.user_data['stage']
+    stage = context.user_data.get('stage')
 
     # If the message is not handled by the current logic, pass it to GPT
     context.user_data['need_chat'] = False
