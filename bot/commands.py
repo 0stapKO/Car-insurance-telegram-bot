@@ -1,8 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-# /start command handler
+# /start command handler, reset bot
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
     await update.message.reply_text('Hi! My name is BuyACarInsuranceBot. I can help you to buy an insurance for your car.')
 
 # /help command handler
